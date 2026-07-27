@@ -1,5 +1,6 @@
 import { getDatabase } from "../config/firebase.js";
 import AppError from "../utils/AppError.js";
+import { ensureCategoryExists } from "./categoryService.js";
 
 const getFoodsRef = () => getDatabase().ref("foods");
 
@@ -9,6 +10,7 @@ const formatFood = (id, food) => ({
 });
 
 export const createFood = async (foodData) => {
+  const category = await ensureCategoryExists(foodData.category);
   const foodsRef = getFoodsRef();
   const newFoodRef = foodsRef.push();
   const now = new Date().toISOString();
@@ -16,7 +18,7 @@ export const createFood = async (foodData) => {
   const food = {
     name: foodData.name.trim(),
     price: Number(foodData.price),
-    category: foodData.category.trim(),
+    category: category.name,
     image: foodData.image.trim(),
     description: foodData.description.trim(),
     createdAt: now,
@@ -71,10 +73,47 @@ export const updateFood = async (id, foodData) => {
     }
   }
 
+  if (updates.category !== undefined) {
+    const category = await ensureCategoryExists(updates.category);
+    updates.category = category.name;
+  }
+
   await foodRef.update(updates);
 
   const updatedSnapshot = await foodRef.once("value");
   return formatFood(id, updatedSnapshot.val());
+};
+
+export const getFoodById = async (id) => {
+  const snapshot = await getFoodsRef().child(id).once("value");
+
+  if (!snapshot.exists()) {
+    throw new AppError("Food item not found", 404);
+  }
+
+  return formatFood(id, snapshot.val());
+};
+
+export const getFoodsByIds = async (ids) => {
+  const uniqueIds = [...new Set(ids)];
+  const snapshots = await Promise.all(
+    uniqueIds.map((id) => getFoodsRef().child(id).once("value"))
+  );
+
+  const foods = new Map();
+  const missingIds = [];
+
+  snapshots.forEach((snapshot, index) => {
+    const id = uniqueIds[index];
+
+    if (snapshot.exists()) {
+      foods.set(id, formatFood(id, snapshot.val()));
+    } else {
+      missingIds.push(id);
+    }
+  });
+
+  return { foods, missingIds };
 };
 
 export const deleteFood = async (id) => {

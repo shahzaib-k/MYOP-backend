@@ -1,22 +1,22 @@
 import express from "express";
 import {
+  cancelCustomerOrder,
   createCustomerOrder,
   deleteCustomerOrder,
+  getMyOrders,
   getOrder,
-  getOrders,
-  updateCustomerOrderStatus,
 } from "../controllers/orderController.js";
-import {
-  validateCreateOrder,
-  validateUpdateOrderStatus,
-} from "../middleware/validateOrder.js";
+import { validateCreateOrder } from "../middleware/validateOrder.js";
+import { protect, restrictTo } from "../middleware/authMiddleware.js";
 
 const router = express.Router();
 
+router.use(protect);
+
 router.post("/", validateCreateOrder, createCustomerOrder);
-router.get("/", getOrders);
+router.get("/", getMyOrders);
 router.get("/:id", getOrder);
-router.put("/:id/status", validateUpdateOrderStatus, updateCustomerOrderStatus);
-router.delete("/:id", deleteCustomerOrder);
+router.put("/:id/cancel", cancelCustomerOrder);
+router.delete("/:id", restrictTo("admin"), deleteCustomerOrder);
 
 export default router;

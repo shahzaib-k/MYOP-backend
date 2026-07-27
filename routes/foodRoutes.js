@@ -10,13 +10,27 @@ import {
   validateCreateFood,
   validateUpdateFood,
 } from "../middleware/validateFood.js";
+import { protect, restrictTo } from "../middleware/authMiddleware.js";
 
 const router = express.Router();
 
-router.post("/", validateCreateFood, createFoodItem);
 router.get("/", getFoodItems);
 router.get("/category/:category", getFoodItemsByCategory);
-router.put("/:id", validateUpdateFood, updateFoodItem);
-router.delete("/:id", deleteFoodItem);
+
+router.post(
+  "/",
+  protect,
+  restrictTo("admin"),
+  validateCreateFood,
+  createFoodItem
+);
+router.put(
+  "/:id",
+  protect,
+  restrictTo("admin"),
+  validateUpdateFood,
+  updateFoodItem
+);
+router.delete("/:id", protect, restrictTo("admin"), deleteFoodItem);
 
 export default router;
