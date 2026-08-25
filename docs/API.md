@@ -27,9 +27,16 @@ Roles: `customer` (mobile app) and `admin` (admin panel).
 | GET | `/me` | Any logged-in user | — |
 | PUT | `/me` | Any logged-in user | `name?`, `phone?` |
 | PUT | `/me/password` | Any logged-in user | `currentPassword`, `newPassword` |
+| POST | `/me/push-token` | Any logged-in user | `token` (an Expo push token) |
 
 `register` and `login` return `{ user, token }`. Registration always creates a
 `customer`; admins are created from `.env` on boot or by another admin.
+
+`POST /me/push-token` registers the calling device for push notifications —
+call it once permission is granted and again whenever `expo-notifications`
+reports a new token. Tokens are stored per user (`users/{id}/pushTokens`, a
+plain array) and are pruned automatically once Expo reports one as
+`DeviceNotRegistered`.
 
 ---
 
@@ -78,6 +85,11 @@ Server-side rules on create:
 
 Status flow: `pending → preparing → completed`, with `cancelled` reachable from
 `pending` or `preparing`. Every change is appended to `statusHistory`.
+
+A push notification is sent to the order's owner when the order is created,
+and again on every status change made by someone else (an admin update, or a
+customer cancelling from a different session) — see `services/notificationService.js`.
+Delivery is best-effort and never blocks or fails the request.
 
 ---
 
@@ -136,10 +148,14 @@ JWT_EXPIRES_IN=7d
 ADMIN_NAME=Administrator
 ADMIN_EMAIL=admin@platter.com
 ADMIN_PASSWORD=...
+EXPO_ACCESS_TOKEN=...
 ```
 
 If `ADMIN_EMAIL` and `ADMIN_PASSWORD` are set, that admin account is created on
 server start when it does not already exist.
+
+`EXPO_ACCESS_TOKEN` authenticates outgoing push notifications with Expo's push
+service. Optional, but Expo may rate-limit unauthenticated requests.
 
 ## Firebase indexes
 

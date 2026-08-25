@@ -33,7 +33,7 @@ app.use("/api/admin", adminRoutes);
 app.use(notFoundHandler);
 app.use(errorHandler);
 
-const server = app.listen(PORT, async (error) => {
+const server = app.listen(PORT, '0.0.0.0', async (error) => {
   if (error) {
     console.error(`Failed to start server: ${error.message}`);
     process.exit(1);

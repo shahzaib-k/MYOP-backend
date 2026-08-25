@@ -4,6 +4,7 @@ import {
   registerCustomer,
   updateUserProfile,
 } from "../services/authService.js";
+import { savePushToken } from "../services/notificationService.js";
 import { sendSuccess } from "../utils/responseHelper.js";
 
 export const register = async (req, res, next) => {
@@ -45,6 +46,15 @@ export const changePassword = async (req, res, next) => {
   try {
     await changeUserPassword(req.user.userId, req.body);
     return sendSuccess(res, 200, "Password updated successfully");
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const registerPushToken = async (req, res, next) => {
+  try {
+    await savePushToken(req.user.userId, req.body.token);
+    return sendSuccess(res, 200, "Push token registered successfully");
   } catch (error) {
     next(error);
   }

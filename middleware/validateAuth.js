@@ -87,6 +87,18 @@ export const validateUpdateProfile = (req, res, next) => {
   next();
 };
 
+export const validatePushToken = (req, res, next) => {
+  const body = req.body || {};
+
+  if (isEmpty(body.token)) {
+    return next(
+      new AppError("Missing required fields", 400, { missingFields: ["token"] })
+    );
+  }
+
+  next();
+};
+
 export const validateChangePassword = (req, res, next) => {
   const body = req.body || {};
   const missingFields = getMissingFields(body, ["currentPassword", "newPassword"]);
