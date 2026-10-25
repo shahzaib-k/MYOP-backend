@@ -39,6 +39,18 @@ const buildVerifiedItems = async (requestedItems) => {
     throw new AppError("Some food items no longer exist", 400, { missingIds });
   }
 
+  const soldOutNames = requestedItems
+    .map((item) => foods.get(item.foodId))
+    .filter((food) => food.available === false)
+    .map((food) => food.name);
+
+  if (soldOutNames.length > 0) {
+    throw new AppError(
+      `Sold out right now: ${[...new Set(soldOutNames)].join(", ")}. Remove them to place your order.`,
+      400
+    );
+  }
+
   return requestedItems.map((item) => {
     const food = foods.get(item.foodId);
     const quantity = Number(item.quantity);

@@ -2,6 +2,11 @@ import AppError from "../utils/AppError.js";
 
 const requiredFields = ["name", "price", "category", "image", "description"];
 const textFields = ["name", "category", "image", "description"];
+const updatableFields = [...requiredFields, "available"];
+
+/** `available` is optional, but when present it must be a real boolean. */
+const isValidAvailability = (value) =>
+  value === undefined || typeof value === "boolean";
 
 const isEmpty = (value) => {
   return value === undefined || value === null || String(value).trim() === "";
@@ -26,11 +31,15 @@ export const validateCreateFood = (req, res, next) => {
     return next(new AppError("Price must be a valid positive number", 400));
   }
 
+  if (!isValidAvailability(req.body.available)) {
+    return next(new AppError("Available must be true or false", 400));
+  }
+
   next();
 };
 
 export const validateUpdateFood = (req, res, next) => {
-  const allowedFields = requiredFields;
+  const allowedFields = updatableFields;
   const receivedFields = Object.keys(req.body);
   const invalidFields = receivedFields.filter(
     (field) => !allowedFields.includes(field)
@@ -62,6 +71,10 @@ export const validateUpdateFood = (req, res, next) => {
 
   if (req.body.price !== undefined && !isValidPrice(req.body.price)) {
     return next(new AppError("Price must be a valid positive number", 400));
+  }
+
+  if (!isValidAvailability(req.body.available)) {
+    return next(new AppError("Available must be true or false", 400));
   }
 
   next();

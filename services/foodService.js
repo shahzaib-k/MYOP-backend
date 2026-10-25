@@ -4,9 +4,14 @@ import { ensureCategoryExists } from "./categoryService.js";
 
 const getFoodsRef = () => getDatabase().ref("foods");
 
+/**
+ * `available` is stored per food, but items created before the flag existed
+ * have no value — treat those as available rather than silently hiding them.
+ */
 const formatFood = (id, food) => ({
   id,
   ...food,
+  available: food.available !== false,
 });
 
 export const createFood = async (foodData) => {
@@ -21,6 +26,7 @@ export const createFood = async (foodData) => {
     category: category.name,
     image: foodData.image.trim(),
     description: foodData.description.trim(),
+    available: foodData.available === undefined ? true : Boolean(foodData.available),
     createdAt: now,
     updatedAt: now,
   };
@@ -65,6 +71,10 @@ export const updateFood = async (id, foodData) => {
 
   if (updates.price !== undefined) {
     updates.price = Number(updates.price);
+  }
+
+  if (updates.available !== undefined) {
+    updates.available = Boolean(updates.available);
   }
 
   for (const key of ["name", "category", "image", "description"]) {

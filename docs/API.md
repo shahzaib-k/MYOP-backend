@@ -58,11 +58,16 @@ plain array) and are pruned automatically once Expo reports one as
 | --- | --- | --- | --- |
 | GET | `/` | Public | |
 | GET | `/category/:category` | Public | category **name** |
-| POST | `/` | Admin | `name`, `price`, `category`, `image`, `description` |
-| PUT | `/:id` | Admin | partial update |
+| POST | `/` | Admin | `name`, `price`, `category`, `image`, `description`, `available?` |
+| PUT | `/:id` | Admin | partial update (`available` may be sent on its own) |
 | DELETE | `/:id` | Admin | |
 
 `category` must match an existing, active category or the request fails with 400.
+
+**Availability.** Every food in a response carries `available` (boolean). Items saved before the flag existed have no stored value and are returned as `available: true`. `available` must be a real boolean (`true`/`false`) when sent. A sold-out item (`available: false`):
+- is still returned by `GET /api/foods` so clients can show it greyed out;
+- is never returned as a platter suggestion, add-on or cheaper alternative by `/api/recommendations/*`;
+- makes `POST /api/orders` fail with 400 (`Sold out right now: <names>. Remove them to place your order.`).
 
 ---
 
@@ -143,6 +148,9 @@ Order lists are paginated: `data.pagination = { page, limit, totalItems, totalPa
 ```
 PORT=5000
 FIREBASE_DATABASE_URL=...
+FIREBASE_PROJECT_ID=...
+FIREBASE_CLIENT_EMAIL=...
+FIREBASE_PRIVATE_KEY=...
 JWT_SECRET=...
 JWT_EXPIRES_IN=7d
 ADMIN_NAME=Administrator
@@ -152,10 +160,31 @@ EXPO_ACCESS_TOKEN=...
 ```
 
 If `ADMIN_EMAIL` and `ADMIN_PASSWORD` are set, that admin account is created on
-server start when it does not already exist.
+server start when it does not already exist — but only on a traditional/local
+start (`node index.js`), since that logic runs in `app.listen()`'s callback,
+which serverless hosts like Vercel never execute. Create the admin manually
+(see `services/authService.js`'s `registerUserWithRole`) if deploying there.
+
+`FIREBASE_PROJECT_ID`, `FIREBASE_CLIENT_EMAIL` and `FIREBASE_PRIVATE_KEY` come
+from the same Firebase service account JSON as `config/serviceAccountKey.json`
+(Project settings → Service accounts → Generate new private key). They're read
+from env vars rather than that file so the app works on hosts that only
+provide env vars — `FIREBASE_PRIVATE_KEY`'s `\n` sequences are unescaped
+defensively in `config/firebase.js`, so pasting it either as one line with
+literal `\n`s or as a real multi-line value both work.
 
 `EXPO_ACCESS_TOKEN` authenticates outgoing push notifications with Expo's push
 service. Optional, but Expo may rate-limit unauthenticated requests.
+
+## Deploying to Vercel
+
+`app.js` exports the Express app with no `.listen()` call; `index.js` adds
+`.listen()` for local/traditional hosting, and `api/index.js` re-exports the
+same app for Vercel's serverless runtime. `vercel.json` rewrites every path to
+that one function, since Vercel doesn't know Express handles its own routing
+internally. Set every variable above (except `PORT`, which Vercel provides
+itself) in the Vercel project's Environment Variables settings before
+deploying — there is no `.env` file in that environment.
 
 ## Firebase indexes
 

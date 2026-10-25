@@ -22,6 +22,11 @@ const getSelectableFoods = async (categories) => {
     : null;
 
   return foods.filter((food) => {
+    // Sold-out items are never suggested, swapped in or offered as add-ons.
+    if (food.available === false) {
+      return false;
+    }
+
     if (!activeNames.has(food.category)) {
       return false;
     }
