@@ -1,5 +1,6 @@
 import {
   cancelOwnOrder,
+  confirmOrderPayment,
   createOrder,
   deleteOrder,
   getAllOrders,
@@ -54,6 +55,15 @@ export const deleteCustomerOrder = async (req, res, next) => {
   try {
     await deleteOrder(req.params.id);
     return sendSuccess(res, 200, "Order deleted successfully");
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const confirmCustomerOrderPayment = async (req, res, next) => {
+  try {
+    const order = await confirmOrderPayment(req.params.id, req.user);
+    return sendSuccess(res, 200, "Payment status updated", order);
   } catch (error) {
     next(error);
   }

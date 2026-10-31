@@ -75,7 +75,8 @@ plain array) and are pruned automatically once Expo reports one as
 
 | Method | Endpoint | Access | Notes |
 | --- | --- | --- | --- |
-| POST | `/` | Customer/Admin | `items: [{ foodId, quantity }]`, `budget?`, `totalPrice?` |
+| POST | `/` | Customer/Admin | `items: [{ foodId, quantity }]`, `paymentMethod` (`cod` \| `card`, required), `budget?`, `totalPrice?` |
+| POST | `/:id/confirm-payment` | Owner or admin | card orders only; reads the PaymentIntent from Stripe and sets `paymentStatus` |
 | GET | `/` | Owner | own orders only; `?status=&search=&page=&limit=&sort=` |
 | GET | `/:id` | Owner or admin | |
 | PUT | `/:id/cancel` | Owner or admin | only from `pending` or `preparing` |
@@ -87,6 +88,14 @@ Server-side rules on create:
 - `totalPrice` is recalculated; if the client sends a different value the order is rejected.
 - `budget` (optional) is stored; an order above it is rejected with `budget` and `totalPrice` in `errors`.
 - `userId` comes from the token and `status` is always `pending`.
+
+Payments: every order has `paymentMethod` (`cod` | `card`) and `paymentStatus`
+(`pending` | `paid` | `failed`). A `card` order is created with a Stripe
+PaymentIntent (sandbox keys only — the server rejects non-`sk_test_` keys) and the
+create response includes `payment: { clientSecret, publishableKey }` for the app's
+payment sheet. Cancelling an unpaid card order cancels its PaymentIntent. Refunds
+for already-paid orders are not automated. Older orders without these fields are
+cash on delivery.
 
 Status flow: `pending → preparing → completed`, with `cancelled` reachable from
 `pending` or `preparing`. Every change is appended to `statusHistory`.
@@ -157,6 +166,9 @@ ADMIN_NAME=Administrator
 ADMIN_EMAIL=admin@platter.com
 ADMIN_PASSWORD=...
 EXPO_ACCESS_TOKEN=...
+STRIPE_SECRET_KEY=sk_test_...
+STRIPE_PUBLISHABLE_KEY=pk_test_...
+STRIPE_CURRENCY=pkr
 ```
 
 If `ADMIN_EMAIL` and `ADMIN_PASSWORD` are set, that admin account is created on

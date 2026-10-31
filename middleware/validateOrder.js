@@ -1,7 +1,8 @@
 import AppError from "../utils/AppError.js";
+import { PAYMENT_METHODS, isValidPaymentMethod } from "../utils/paymentMethods.js";
 import { ORDER_STATUSES, isValidOrderStatus } from "../utils/orderStatus.js";
 
-const allowedOrderFields = ["items", "totalPrice", "budget"];
+const allowedOrderFields = ["items", "totalPrice", "budget", "paymentMethod"];
 const requiredItemFields = ["foodId", "quantity"];
 
 const isEmpty = (value) => {
@@ -55,6 +56,14 @@ export const validateCreateOrder = (req, res, next) => {
     return next(
       new AppError("Missing required order fields", 400, {
         missingFields: ["items"],
+      })
+    );
+  }
+
+  if (!isValidPaymentMethod(body.paymentMethod)) {
+    return next(
+      new AppError("A valid payment method is required", 400, {
+        allowedPaymentMethods: PAYMENT_METHODS,
       })
     );
   }

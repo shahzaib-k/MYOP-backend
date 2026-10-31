@@ -8,6 +8,11 @@ import {
 } from "../utils/orderStatus.js";
 import { filterOrders, paginate, sortOrdersByDate } from "../utils/orderFilters.js";
 import { sendPushNotification } from "./notificationService.js";
+import {
+  cancelPaymentIntent,
+  createPaymentIntent,
+  getPaymentIntentOutcome,
+} from "./paymentService.js";
 
 const STATUS_NOTIFICATION_COPY = {
   preparing: "Your order is now being prepared.",
@@ -110,11 +115,21 @@ export const createOrder = async (orderData, user) => {
     totalPrice,
     budget,
     remainingBudget: budget === null ? null : roundAmount(budget - totalPrice),
+    paymentMethod: orderData.paymentMethod,
+    paymentStatus: "pending",
     status: DEFAULT_ORDER_STATUS,
     statusHistory: [buildStatusHistoryEntry(DEFAULT_ORDER_STATUS, user.userId)],
     createdAt: now,
     updatedAt: now,
   };
+
+  let paymentSession = null;
+
+  if (order.paymentMethod === "card") {
+    // Created before the order is saved so a Stripe failure leaves no orphan order.
+    paymentSession = await createPaymentIntent(order);
+    order.paymentIntentId = paymentSession.paymentIntentId;
+  }
 
   await newOrderRef.set(order);
 
@@ -124,7 +139,40 @@ export const createOrder = async (orderData, user) => {
     data: { orderId: order.orderId, type: "order_created" },
   });
 
+  if (paymentSession) {
+    return {
+      ...order,
+      payment: {
+        clientSecret: paymentSession.clientSecret,
+        publishableKey: paymentSession.publishableKey,
+      },
+    };
+  }
+
   return order;
+};
+
+export const confirmOrderPayment = async (id, user) => {
+  const order = await getOrderForUser(id, user);
+
+  if (order.paymentMethod !== "card" || !order.paymentIntentId) {
+    throw new AppError("This order is not an online card payment", 400);
+  }
+
+  if (order.paymentStatus === "paid") {
+    return order;
+  }
+
+  const paymentStatus = await getPaymentIntentOutcome(order.paymentIntentId, order);
+
+  if (paymentStatus !== order.paymentStatus) {
+    await getOrdersRef().child(id).update({
+      paymentStatus,
+      updatedAt: new Date().toISOString(),
+    });
+  }
+
+  return getOrderById(id);
 };
 
 export const getAllOrders = async (filters = {}) => {
@@ -187,8 +235,18 @@ export const updateOrderStatus = async (id, status, changedBy) => {
     buildStatusHistoryEntry(status, changedBy),
   ];
 
+  const abandonsUnpaidCard =
+    status === "cancelled" &&
+    order.paymentMethod === "card" &&
+    order.paymentStatus !== "paid";
+
+  if (abandonsUnpaidCard && order.paymentIntentId) {
+    await cancelPaymentIntent(order.paymentIntentId);
+  }
+
   await orderRef.update({
     status,
+    ...(abandonsUnpaidCard ? { paymentStatus: "failed" } : {}),
     statusHistory,
     updatedAt: new Date().toISOString(),
   });

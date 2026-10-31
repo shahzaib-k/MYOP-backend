@@ -1,6 +1,7 @@
 import express from "express";
 import {
   cancelCustomerOrder,
+  confirmCustomerOrderPayment,
   createCustomerOrder,
   deleteCustomerOrder,
   getMyOrders,
@@ -17,6 +18,7 @@ router.post("/", validateCreateOrder, createCustomerOrder);
 router.get("/", getMyOrders);
 router.get("/:id", getOrder);
 router.put("/:id/cancel", cancelCustomerOrder);
+router.post("/:id/confirm-payment", confirmCustomerOrderPayment);
 router.delete("/:id", restrictTo("admin"), deleteCustomerOrder);
 
 export default router;
